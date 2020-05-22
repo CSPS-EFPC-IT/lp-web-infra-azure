@@ -13,6 +13,6 @@ This ARM template creates the following Azure Cloud resources:
 The Post Provisioning scripts configure the virtual machine as web server running NGINX and PHP 7.3 framework.
 ## Pre-requisites
 The following resources must exist prior to the deployment of the current ARM templates and scripts:
-1. A _Resource Group_
-1. A _Key Vault_ with a valid certificate (will be used by the Application Gateway for SSL/TLS offload)
-1. A _User Assigned Managed Identity_ with "GET" permissions on both Secrets and Certificates stored in the Key Vault where the Application Gateway certificate is stored
+1. A __Resource Group__
+1. A __Key Vault__ with a valid certificate (will be used by the Application Gateway for SSL/TLS offload)
+1. A __User Assigned Managed Identity__ with "GET" permissions on both Secrets and Certificates stored in the Key Vault where the Application Gateway certificate is stored
