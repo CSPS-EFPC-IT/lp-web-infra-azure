@@ -1,0 +1,47 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "databaseAdminUsername": {
+            "value": "my_postgres_admin"
+        },
+        "databaseAdminPassword": {
+            "value": "mySecretPassword"
+        },
+        "environmentName": {
+            "value": "dev"
+        },
+        "fileRepositoryUri": {
+            "value": "https://raw.githubusercontent.com/CSPS-EFPC-IT/lp-web-infra-azure/master"
+        },
+        "gatewaySslCertificatesUri": {
+            "value": "https://[Your keyvault name].vault.azure.net/secrets/[your SSL/TLS Certificate Name]/[your SSL/TLS certificat Current version ID]"
+        },
+        "gatewayUserAssignedIdentity": {
+            "value": {
+                "/subscriptions/[your subscription id]/resourceGroups/[your resource group name]/providers/Microsoft.ManagedIdentity/userAssignedIdentities/[Your User Assigned Managed Identity]": {}
+            }
+        },
+        "location": {
+            "value": "canadacentral"
+        },
+        "projectName": {
+            "value": "XYZ"
+        },
+        "resourceTags": {
+            "value": {
+                "Contact": "John Doe",
+                "Project": "XYZ"
+            }
+        },
+        "virtualNetworkAddressBase": {
+            "value": "10.10.10"
+        },
+        "vmAdminPassword": {
+            "value": "mySecretPassword"
+        },
+        "vmAdminUsername": {
+            "value": "my_webserver_admin"
+        }
+    }
+}

@@ -1,0 +1,820 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "databaseAdminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The password to use to manage to the database server."
+            }
+        },
+        "databaseAdminUsername": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The username to use to manage to the database server."
+            }
+        },
+        "environmentName": {
+            "type": "string",
+            "defaultValue": "dev",
+            "allowedValues": [
+                "dev",
+                "staging",
+                "prod"
+            ],
+            "metadata": {
+                "description": "The name of the provisioned environment. Used to build the service DNS name."
+            }
+        },
+        "fileRepositoryUri": {
+            "type": "string",
+            "metadata": {
+                "description": "The public URI of the project file repository."
+            }
+        },
+        "gatewaySslCertificatesUri": {
+            "type": "string",
+            "metadata": {
+                "description": "The URI of the SSL certificate to deploy in the Application Gateway."
+            }
+        },
+        "gatewayUserAssignedIdentity": {
+            "type": "object",
+            "metadata": {
+                "description": "The User Identity assigned to the Gateway."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The name of the location new resources will be created."
+            }
+        },
+        "projectName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the project. This string will be used to name all resources required. It may only contain letter, hyphen and underscore characters."
+            }
+        },
+        "resourceTags": {
+            "type": "object",
+            "metadata": {
+                "description": "Tags added to each resource created."
+            }
+        },
+        "virtualNetworkAddressBase": {
+            "type": "string",
+            "metadata": {
+                "description": "The virtual network IP address prefix."
+            }
+        },
+        "vmAdminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The password to use to manage to the virtual machine hosting the web server."
+            }
+        },
+        "vmAdminUsername": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The username to use to manage to the virtual machine hosting the web server."
+            }
+        }
+
+    },
+    "functions":[
+        {
+            "namespace": "custom",
+            "members": {
+                "cleanName": {
+                    "parameters": [
+                        {
+                        "name": "dirtyName",
+                        "type": "string"
+                        }
+                    ],
+                    "output": {
+                        "type": "string",
+                        "value": "[replace(replace(replace(parameters('dirtyName'), '-', ''), '_', ''), ' ', '')]"
+                    }
+                }
+            }
+        }
+    ],
+    "variables": {
+        "app_networkSecurityGroup_name": "[concat(parameters('projectName'), '-APP-NSG')]",
+        "app_subnet_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.32/27')]",
+        "app_subnet_name": "[concat(parameters('projectName'), '-APP-SN')]",
+        "bastion_name": "[concat(parameters('projectName'), '-BH')]",
+        "bastion_publicIp_name": "[concat(parameters('projectName'), '-BH-PublicIP')]",
+        "bastion_subnet_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.128/27')]",
+        "bastion_subnet_name": "AzureBastionSubnet",
+        "dbServer_appDb_name": "[tolower(custom.cleanName(parameters('projectName')))]",
+        "dbServer_name": "[concat(parameters('projectName'), '-', parameters('environmentName'), '-DB')]",
+        "dbServer_backupRetentionDays": "[if(equals(parameters('environmentName'), 'dev'), '7', '28')]",
+        "diagnostic_blobServices_name": "Default",
+        "diagnostic_storageAccount_name": "[tolower(concat(take(custom.cleanName(parameters('projectName')), 11), 'diag', take(parameters('environmentName'), 4), 'sa'))]",
+        "gateway_backendAddressPool_name": "webserver",
+        "gateway_backendHttpSettingsCollection_name": "[concat(parameters('projectName'), '-HTTP-settings')]",
+        "gateway_frontendIPConfigurations_name": "appGwPublicFrontendIp",
+        "gateway_frontendPort_http_name": "http_port",
+        "gateway_frontendPort_https_name": "https_port",
+        "gateway_gatewayIPConfigurations_name": "appGatewayIpConfig",
+        "gateway_httpListeners_http_name": "HTTP-listener",
+        "gateway_httpListeners_https_name": "HTTPS-listener",
+        "gateway_name": "[concat(parameters('projectName'), '-GW')]",
+        "gateway_publicIp_domainNameLabel": "[tolower(concat(parameters('projectName'), '-', parameters('environmentName')))]",
+        "gateway_publicIp_name": "[concat(parameters('projectName'), '-GW-PublicIP')]",
+        "gateway_redirectConfigurations_name": "http-redirect",
+        "gateway_requestRoutingRule_http_name": "http-rule",
+        "gateway_requestRoutingRule_https_name": "https-rule",
+        "gateway_sslCertificate_https_name": "HTTPS-certificate",
+        "paz_networkSecurityGroup_name": "[concat(parameters('projectName'), '-PAZ-NSG')]",
+        "paz_subnet_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.0/27')]",
+        "paz_subnet_name": "[concat(parameters('projectName'), '-PAZ-SN')]",
+        "virtualNetwork_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.0/24')]",
+        "virtualNetwork_name": "[concat(parameters('projectName'), '-', toupper(parameters('environmentName')), '-VN')]",
+        "vm_nic_name": "[concat(variables('vm_name'), '-NIC')]",
+        "vm_name": "[concat(parameters('projectName'), '-VM')]",
+        "vm_osDisk_name": "[concat(variables('vm_name'), '-OS-Disk')]",
+        "vm_dataDisk_name": "[concat(variables('vm_name'), '-data-Disk')]",
+        "vm_computerName": "[tolower(custom.cleanName(parameters('projectName')))]"
+    },
+    "resources": [
+
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('paz_networkSecurityGroup_name')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('resourceTags')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "AllowPublicInternetInBound",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "sourceAddressPrefix": "Internet",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [
+                                "80",
+                                "443"
+                            ],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowGatewayManagerInBound",
+                        "properties": {
+                            "description": "Voir https://docs.microsoft.com/en-us/azure/application-gateway/configuration-overview",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "65200-65535",
+                            "sourceAddressPrefix": "GatewayManager",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('app_networkSecurityGroup_name')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('resourceTags')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "AllowApplicationGatewayInbound",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "sourceAddressPrefix": "[variables('paz_subnet_addressPrefix')]",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [
+                                "80"
+                            ],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowBastionInBound",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "[variables('bastion_subnet_addressPrefix')]",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('virtualNetwork_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('paz_networkSecurityGroup_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('app_networkSecurityGroup_name'))]"
+           ],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('virtualNetwork_addressPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('bastion_subnet_name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('bastion_subnet_addressPrefix')]",
+                            "serviceEndpoints": [],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    },
+                    {
+                        "name": "[variables('paz_subnet_name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('paz_subnet_addressPrefix')]",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('paz_networkSecurityGroup_name'))]"
+                            },
+                            "serviceEndpoints": [],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    },
+                    {
+                        "name": "[variables('app_subnet_name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('app_subnet_addressPrefix')]",
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('app_networkSecurityGroup_name'))]"
+                            },
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "[parameters('location')]"
+                                    ]
+                                },
+                                {
+                                    "service": "Microsoft.Sql",
+                                    "locations": [
+                                        "[parameters('location')]"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            }
+        },
+
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('bastion_publicIp_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/bastionHosts",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('bastion_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('bastion_publicIp_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "IpConf",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('bastion_publicIp_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetwork_name'), variables('bastion_subnet_name'))]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('gateway_publicIp_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "[variables('gateway_publicIp_domainNameLabel')]"
+                },
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/applicationGateways",
+            "apiVersion": "2019-11-01",
+            "name": "[variables('gateway_name')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('resourceTags')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('gateway_publicIp_name'))]"
+            ],
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": "[parameters('gatewayUserAssignedIdentity')]"
+            },
+            "properties": {
+                "sku": {
+                    "name": "Standard_v2",
+                    "tier": "Standard_v2"
+                },
+                "gatewayIPConfigurations": [
+                    {
+                        "name": "[variables('gateway_gatewayIPConfigurations_name')]",
+                        "properties": {
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetwork_name'), variables('paz_subnet_name'))]"
+                            }
+                        }
+                    }
+                ],
+                "frontendIPConfigurations": [
+                    {
+                        "name": "[variables('gateway_frontendIPConfigurations_name')]",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('gateway_publicIp_name'))]"
+                            }
+                        }
+                    }
+                ],
+                "frontendPorts": [
+                    {
+                        "name": "[variables('gateway_frontendPort_http_name')]",
+                        "properties": {
+                            "port": 80
+                        }
+                    },
+                    {
+                        "name": "[variables('gateway_frontendPort_https_name')]",
+                        "properties": {
+                            "port": 443
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "[variables('gateway_backendAddressPool_name')]",
+                        "properties": {
+                            "backendAddresses": []
+                        }
+                    }
+                ],
+                "backendHttpSettingsCollection": [
+                    {
+                        "name": "[variables('gateway_backendHttpSettingsCollection_name')]",
+                        "properties": {
+                            "port": 80,
+                            "protocol": "Http",
+                            "cookieBasedAffinity": "Disabled",
+                            "pickHostNameFromBackendAddress": false,
+                            "requestTimeout": 60
+                        }
+                    }
+                ],
+                "sslCertificates": [
+                    {
+                        "name": "[variables('gateway_sslCertificate_https_name')]",
+                        "properties": {
+                            "keyVaultSecretId": "[parameters('gatewaySslCertificatesUri')]"
+                        }
+                    }
+                ],
+                "httpListeners": [
+                    {
+                        "name": "[variables('gateway_httpListeners_https_name')]",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/frontendIPConfigurations/', variables('gateway_frontendIPConfigurations_name'))]"
+                            },
+                            "frontendPort": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/frontendPorts/', variables('gateway_frontendPort_https_name'))]"
+                            },
+                            "protocol": "Https",
+                            "sslCertificate": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/sslCertificates/', variables('gateway_sslCertificate_https_name'))]"
+                            },
+                            "hostNames": [],
+                            "requireServerNameIndication": false
+                        }
+                    },
+                    {
+                        "name": "[variables('gateway_httpListeners_http_name')]",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/frontendIPConfigurations/', variables('gateway_frontendIPConfigurations_name'))]"
+                            },
+                            "frontendPort": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/frontendPorts/', variables('gateway_frontendPort_http_name'))]"
+                            },
+                            "protocol": "Http",
+                            "hostNames": [],
+                            "requireServerNameIndication": false
+                        }
+                    }
+                ],
+                "urlPathMaps": [],
+                "requestRoutingRules": [
+                    {
+                        "name": "[variables('gateway_requestRoutingRule_https_name')]",
+                        "properties": {
+                            "ruleType": "Basic",
+                            "httpListener": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/httpListeners/', variables('gateway_httpListeners_https_name'))]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/backendAddressPools/', variables('gateway_backendAddressPool_name'))]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/backendHttpSettingsCollection/', variables('gateway_backendHttpSettingsCollection_name'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "[variables('gateway_requestRoutingRule_http_name')]",
+                        "properties": {
+                            "ruleType": "Basic",
+                            "httpListener": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/httpListeners/', variables('gateway_httpListeners_http_name'))]"
+                            },
+                            "redirectConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/redirectConfigurations/', variables('gateway_redirectConfigurations_name'))]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [],
+                "rewriteRuleSets": [],
+                "redirectConfigurations": [
+                    {
+                        "name": "[variables('gateway_redirectConfigurations_name')]",
+                        "properties": {
+                            "redirectType": "Permanent",
+                            "targetListener": {
+                                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/httpListeners/', variables('gateway_httpListeners_https_name'))]"
+                            },
+                            "includePath": true,
+                            "includeQueryString": true,
+                            "requestRoutingRules": [
+                                {
+                                    "id": "[concat(resourceId('Microsoft.Network/applicationGateways', variables('gateway_name')), '/requestRoutingRules/', variables('gateway_requestRoutingRule_http_name'))]"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "sslPolicy": {
+                    "policyType": "Custom",
+                    "minProtocolVersion": "TLSv1_2",
+                    "cipherSuites": [
+                        "TLS_RSA_WITH_AES_256_CBC_SHA256",
+                        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
+                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+                        "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_RSA_WITH_AES_128_CBC_SHA256"
+                    ]
+                },
+                "enableHttp2": false,
+                "autoscaleConfiguration": {
+                    "minCapacity": 1,
+                    "maxCapacity": 10
+                }
+            }
+        },
+
+        {
+            "type": "Microsoft.DBforMySQL/servers",
+            "apiVersion": "2017-12-01-preview",
+            "name": "[variables('dbServer_name')]",
+            "location": "[parameters('location')]",
+            "tags": "[parameters('resourceTags')]",
+            "properties": {
+                "version": "5.7",
+                "createMode": "Default",
+                "administratorLogin": "[parameters('databaseAdminUsername')]",
+                "administratorLoginPassword": "[parameters('databaseAdminPassword')]",
+                "storageProfile": {
+                    "storageMB": 102400,
+                    "backupRetentionDays": "[variables('dbServer_backupRetentionDays')]",
+                    "geoRedundantBackup": "Disabled",
+                    "storageAutoGrow": "Enabled"
+                },
+                "previewFeature": "",
+                "infrastructureEncryption": "Disabled"
+            },
+            "sku": {
+                "name": "GP_Gen5_2",
+                "tier": "GeneralPurpose",
+                "capacity": 2,
+                "size": "102400",
+                "family": "Gen5"
+            }
+        },
+        {
+            "type": "Microsoft.DBforMySQL/servers/databases",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('dbServer_name'), '/', variables('dbServer_appDb_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforMySQL/servers', variables('dbServer_name'))]"
+            ],
+            "properties": {
+                "charset": "utf8",
+                "collation": "utf8_general_ci"
+            }
+        },
+        {
+            "type": "Microsoft.DBforMySQL/servers/virtualNetworkRules",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('dbServer_name'), '/', variables('app_subnet_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforMySQL/servers', variables('dbServer_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]"
+            ],
+            "properties": {
+                "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetwork_name'), variables('app_subnet_name'))]",
+                "ignoreMissingVnetServiceEndpoint": false
+            }
+        },
+
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('diagnostic_storageAccount_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "Storage",
+            "properties": {
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('diagnostic_storageAccount_name'), '/', variables('diagnostic_blobServices_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnostic_storageAccount_name'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": false
+                }
+            }
+        },
+
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-03-01",
+            "name": "[variables('vm_nic_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]",
+                "[resourceId('Microsoft.Network/applicationGateways', variables('gateway_name'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetwork_name'), variables('app_subnet_name'))]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4",
+                            "applicationGatewayBackendAddressPools": [
+                                {
+                                    "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', variables('gateway_name'), variables('gateway_backendAddressPool_name'))]"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false
+            }
+        },
+
+        {
+            "type": "Microsoft.Compute/disks",
+            "apiVersion": "2019-07-01",
+            "name": "[variables('vm_dataDisk_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Premium_LRS"
+            },
+            "properties": {
+                "diskSizeGB": 1024,
+                "creationData": {
+                    "createOption": "empty"
+                }
+            }
+        },
+
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2019-07-01",
+            "name": "[variables('vm_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('vm_nic_name'))]",
+                "[resourceId('Microsoft.Compute/disks', variables('vm_dataDisk_name'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnostic_storageAccount_name'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D2s_v3"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "18.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[variables('vm_osDisk_name')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": [
+                        {
+                            "lun": 0,
+                            "name": "[variables('vm_dataDisk_name')]",
+                            "createOption": "Attach",
+                            "caching": "ReadWrite",
+                            "writeAcceleratorEnabled": false,
+                            "managedDisk": {
+                                "storageAccountType": "Premium_LRS",
+                                "id": "[resourceId('Microsoft.Compute/disks', variables('vm_dataDisk_name'))]"
+                            },
+                            "diskSizeGB": 1024,
+                            "toBeDetached": false
+                        }
+                    ]
+                },
+                "osProfile": {
+                    "computerName": "[variables('vm_computerName')]",
+                    "adminUsername": "[parameters('vmAdminUsername')]",
+                    "adminPassword": "[parameters('vmAdminPassword')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false,
+                        "provisionVMAgent": true
+                    },
+                    "allowExtensionOperations": true
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vm_nic_name'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[reference(variables('diagnostic_storageAccount_name')).primaryEndPoints.blob]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "apiVersion": "2019-12-01",
+            "name": "[concat(variables('vm_name'), '/webServerSetupScript')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('vm_name'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": "true",
+                "settings": {
+                    "fileUris": [
+                        "[concat(parameters('fileRepositoryUri'), '/scripts/webServerSetup.sh')]"
+                    ],
+                    "commandToExecute": "sudo ./webServerSetup.sh > webServerSetup.log"
+                },
+                "protectedSettings": {}
+            }
+        }
+    ],
+    "outputs": {}
+}
