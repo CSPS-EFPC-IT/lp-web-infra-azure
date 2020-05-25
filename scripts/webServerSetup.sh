@@ -27,9 +27,10 @@ echo "Done."
 ###############################################################################
 echo_title "Set useful variables."
 ###############################################################################
-phpFpmIniPath="/etc/php/7.3/fpm/php.ini"
 defaultDocumentRoot=/var/www/html
 newDocumentRoot=${defaultDocumentRoot}/${projectName}/web
+nginxUser="www-data"
+phpFpmIniPath="/etc/php/7.3/fpm/php.ini"
 echo "Done."
 
 ###############################################################################
@@ -47,7 +48,7 @@ mkfs -t ext4 /dev/sdc
 mkdir --parents $appStoragePath
 printf "/dev/sdc\t${appStoragePath}\text4\tdefaults,nofail\t0\t0\n" >> /etc/fstab
 mount -a
-chmod -R 777 $appStoragePath
+chown -R $nginxUser $appStoragePath
 echo "Done."
 
 ###############################################################################
@@ -106,7 +107,7 @@ cat <<EOF >> ${newDocumentRoot}/index.php
 <?php
 phpinfo();
 EOF
-chmod -R 777 ${defaultDocumentRoot}
+chown -R $nginxUser ${defaultDocumentRoot}
 
 echo "Create new NGINX site configuration."
 cat <<EOF > /etc/nginx/sites-available/${projectName} \
