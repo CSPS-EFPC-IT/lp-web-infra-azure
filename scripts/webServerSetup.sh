@@ -110,29 +110,29 @@ EOF
 chown -R $nginxUser ${defaultDocumentRoot}
 
 echo "Create new NGINX site configuration."
-cat <<EOF >> /etc/nginx/sites-available/${projectName} \
-server {\
-    listen 80 default_server;\
-    listen [::]:80 default_server;\
-\
-    root ${newDocumentRoot};\
-    index index.php;\
-\
-    server_name _;\
-\
-    location / {\
-        try_files \$uri \$uri/ =404;\
-    }\
-\
-    location ~ \.php$ {\
-        include snippets/fastcgi-php.conf;\
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;\
-    }\
-\
-    location ~ /\.ht {\
-        deny all;\
-    }\
-}\
+cat <<EOF >> /etc/nginx/sites-available/${projectName}
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    root ${newDocumentRoot};
+    index index.php;
+
+    server_name _;
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
 EOF
 
 echo "Enable new site configuration"
@@ -152,4 +152,3 @@ echo "Not yet implemented"
 ###############################################################################
 echo_title "Finishing $0 on $(date)."
 ###############################################################################
-
