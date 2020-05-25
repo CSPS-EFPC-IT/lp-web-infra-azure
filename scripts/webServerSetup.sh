@@ -132,7 +132,7 @@ server {\
     location ~ /\.ht {\
         deny all;\
     }\
-}\
+}
 EOF
 
 echo "Enable new site configuration"
