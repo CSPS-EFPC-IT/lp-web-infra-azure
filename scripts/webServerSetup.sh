@@ -110,7 +110,7 @@ EOF
 chown -R $nginxUser ${defaultDocumentRoot}
 
 echo "Create new NGINX site configuration."
-cat <<EOF > /etc/nginx/sites-available/${projectName} \
+cat <<EOF >> /etc/nginx/sites-available/${projectName} \
 server {\
     listen 80 default_server;\
     listen [::]:80 default_server;\
@@ -132,7 +132,7 @@ server {\
     location ~ /\.ht {\
         deny all;\
     }\
-}
+}\
 EOF
 
 echo "Enable new site configuration"
