@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # This script must be run as root (ex.: sudo sh [script_name])
 
@@ -16,7 +15,8 @@ echo_title "Starting $0 on $(date)."
 ###############################################################################
 echo_title "Map input parameters."
 ###############################################################################
-projectName=$1
+projectName="$1"
+appStoragePath="$2"
 echo "Done."
 
 ###############################################################################
@@ -27,12 +27,9 @@ echo "Done."
 ###############################################################################
 echo_title "Set useful variables."
 ###############################################################################
-phpIniPath="/etc/php/7.3/fpm/php.ini"
+phpFpmIniPath="/etc/php/7.3/fpm/php.ini"
 defaultDocumentRoot=/var/www/html
-nginxUser="www-data"
 newDocumentRoot=${defaultDocumentRoot}/${projectName}/web
-data
-installDir=$(pwd)
 echo "Done."
 
 ###############################################################################
@@ -47,16 +44,16 @@ echo "Done."
 echo_title "Mount Data disk."
 ###############################################################################
 mkfs -t ext4 /dev/sdc
-mkdir /mnt/data
-sudo printf "/dev/sdc\t/mnt/data\text4\tdefaults,nofail\t0\t0\n" >> /etc/fstab
-sudo mount -a
-chmod -R 777 /mnt/data
+mkdir --parents $appStoragePath
+printf "/dev/sdc\t${appStoragePath}\text4\tdefaults,nofail\t0\t0\n" >> /etc/fstab
+mount -a
+chmod -R 777 $appStoragePath
 echo "Done."
 
 ###############################################################################
 echo_title "Install tools."
 ###############################################################################
-apt-get install mysql-client ## temporaire
+apt-get install mysql-client
 echo "Done."
 
 ###############################################################################
@@ -69,36 +66,87 @@ apt-get install nginx php7.3-fpm php7.3-common php7.3-mysql php7.3-xml php7.3-xm
 echo "Done."
 
 ###############################################################################
-echo_title "Update PHP config."
+echo_title "Update PHP FastCGI Process Manager (FPM) config."
 ###############################################################################
+echo "Update allow_url_fopen setting."
+sed -i "s/^;\?allow_url_fopen[[:space:]]*=.*/allow_url_fopen = On/" $phpFpmIniPath
+
+echo "Update cgi.fix_pathinfo setting."
+sed -i "s/^;\?cgi\.fix_pathinfo[[:space:]]*=.*/cgi\.fix_pathinfo = 0/" $phpFpmIniPath
+
+echo "Update date.timezone setting."
+sed -i "s/^;\?date\.timezone[[:space:]]*=.*/date\.timezone = America\/Toronto/" $phpFpmIniPath
+
+echo "Update file_uploads setting."
+sed -i "s/^;\?file_uploads[[:space:]]*=.*/file_uploads = On/" $phpFpmIniPath
+
+echo "Update max_execution_time setting."
+sed -i "s/^;\?max_execution_time[[:space:]]*=.*/max_execution_time = 360/" $phpFpmIniPath
+
+echo "Update memory_limit setting."
+sed -i "s/^;\?memory_limit[[:space:]]*=.*/memory_limit = 256M/" $phpFpmIniPath
+
+echo "Update short_open_tag setting."
+sed -i "s/^;\?short_open_tag[[:space:]]*=.*/short_open_tag = On/" $phpFpmIniPath
+
 echo "Update upload_max_filesize setting."
-sed -i "s/upload_max_filesize.*/upload_max_filesize = 100M/" $phpIniPath
+sed -i "s/^;\?upload_max_filesize[[:space:]]*=.*/upload_max_filesize = 100M/" $phpFpmIniPath
 
-echo "Update post_max_size setting."
-sed -i "s/post_max_size.*/post_max_size = 2048M/" $phpIniPath
+echo "Restarting PHP processor."
+service php7.3-fpm restart
 
 echo "Done."
 
 ###############################################################################
-echo_title "Update NGINX default site DocumentRoot property."
+echo_title "Configure a new NGINX site for ${projectName}."
 ###############################################################################
-if ! grep -q "${newDocumentRoot}" /etc/nginx/sites-available/000-default.conf; then
-    echo "Updating /etc/apache2/sites-available/000-default.conf..."
-    escapedDefaultDocumentRoot=$(sed -E 's/(\/)/\\\1/g' <<< ${defaultDocumentRoot})
-    escapedNewDocumentRoot=$(sed -E 's/(\/)/\\\1/g' <<< ${newDocumentRoot})
-    sed -i -E "s/DocumentRoot[[:space:]]*${escapedDefaultDocumentRoot}/DocumentRoot ${escapedNewDocumentRoot}/g" /etc/nginx/sites-available/000-default.conf
-    echo "Restarting NGINX..."
-    service nginx restart
-else
-    echo "Skipping /etc/nginx/sites-available/000-default.conf file update."
-fi
-echo "Done."
+echo "Create and initialize new site document root."
+mkdir --parents ${newDocumentRoot}
+cat <<EOF >> ${newDocumentRoot}/index.php
+<?php
+phpinfo();
+EOF
+chmod -R 777 ${defaultDocumentRoot}
+
+echo "Create new NGINX site configuration."
+cat <<EOF > /etc/nginx/sites-available/${projectName} \
+server {\
+    listen 80 default_server;\
+    listen [::]:80 default_server;\
+\
+    root ${newDocumentRoot};\
+    index index.php;\
+\
+    server_name _;\
+\
+    location / {\
+        try_files \$uri \$uri/ =404;\
+    }\
+\
+    location ~ \.php$ {\
+        include snippets/fastcgi-php.conf;\
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;\
+    }\
+\
+    location ~ /\.ht {\
+        deny all;\
+    }\
+}\
+EOF
+
+echo "Enable new site configuration"
+ln -s /etc/nginx/sites-available/${projectName} /etc/nginx/sites-enabled/${projectName}
+
+echo "Disable NGINX default site configuration"
+rm /etc/nginx/sites-enabled/default
+
+echo "Reload new site configuration"
+service nginx reload
 
 ###############################################################################
 echo_title "Create Application database user if not existing."
 ###############################################################################
-echo "Done."
-
+echo "Not yet implemented"
 
 ###############################################################################
 echo_title "Finishing $0 on $(date)."

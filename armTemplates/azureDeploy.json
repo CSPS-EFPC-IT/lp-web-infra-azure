@@ -139,7 +139,8 @@
         "vm_name": "[concat(parameters('projectName'), '-VM')]",
         "vm_osDisk_name": "[concat(variables('vm_name'), '-OS-Disk')]",
         "vm_dataDisk_name": "[concat(variables('vm_name'), '-data-Disk')]",
-        "vm_computerName": "[tolower(custom.cleanName(parameters('projectName')))]"
+        "vm_computerName": "[tolower(custom.cleanName(parameters('projectName')))]",
+        "vm_app_storage_path" : "/mnt/storage"
     },
     "resources": [
 
@@ -810,7 +811,9 @@
                     "fileUris": [
                         "[concat(parameters('fileRepositoryUri'), '/scripts/webServerSetup.sh')]"
                     ],
-                    "commandToExecute": "sudo ./webServerSetup.sh > webServerSetup.log"
+                    "commandToExecute": "[concat('sudo ./webServerSetup.sh ',
+                        custom.cleanName(parameters('projectName')),' ',
+                        variables('vm_app_storage_path'), ' > webServerSetup.log')]"
                 },
                 "protectedSettings": {}
             }
