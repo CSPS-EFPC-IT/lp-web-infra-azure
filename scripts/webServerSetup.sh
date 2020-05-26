@@ -63,7 +63,7 @@ apt-get update
 echo_action "Upgrading sytem..."
 apt-get upgrade -y
 
-echo_action "Removing unsed components..."
+echo_action "Removing unused components..."
 apt-get autoremove -y
 
 echo_action "Done."
