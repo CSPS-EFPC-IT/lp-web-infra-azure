@@ -812,7 +812,8 @@
             "tags": "[parameters('resourceTags')]",
             "location": "[parameters('location')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', variables('vm_name'))]"
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('vm_name'))]",
+                "[resourceId('Microsoft.DBforMySQL/servers/databases', variables('dbServer_name'), variables('dbServer_appDb_name'))]"
             ],
             "properties": {
                 "publisher": "Microsoft.Azure.Extensions",
@@ -827,6 +828,7 @@
                         tolower(custom.cleanName(parameters('projectName'))),' ',
                         variables('vm_app_storage_path'), ' ',
                         variables('dbServer_name'), ' ',
+                        reference(variables('dbServer_name')).fullyQualifiedDomainName, ' ',
                         parameters('databaseAdminUsername'), ' ',
                         parameters('databaseAdminPassword'), ' ',
                         variables('dbServer_appDb_name'), ' ',
@@ -837,10 +839,5 @@
             }
         }
     ],
-    "outputs": {
-        "databaseServerUrl": {
-            "type": "string",
-            "value": "[reference(variables('dbServer_name')).name]"
-        }
-    }
+    "outputs": {}
 }
