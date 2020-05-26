@@ -17,20 +17,36 @@ echo_title "Map input parameters."
 ###############################################################################
 projectName="$1"
 appStoragePath="$2"
+dbServerName="$3"
+dbAdminUsername="$4"
+dbAdminPassword="$5"
+dbAppDatabaseName="$6"
+dbAppUsername="$7"
+dbAppPassword="$8"
 echo "Done."
 
 ###############################################################################
 echo_title "Echo parameter values for debuging purpose."
 ###############################################################################
+echo "projectName=${projectName}"
+echo "appStoragePath=${appStoragePath}"
+echo "dbServerName=${dbServerName}"
+echo "dbAdminUsername=${dbAdminUsername}"
+echo "dbAdminPassword=${dbAdminPassword}"
+echo "dbAppDatabaseName=${dbAppDatabaseName}"
+echo "dbAppUsername=${dbAppUsername}"
+echo "dbAppPassword=${dbAppPassword}"
 echo "Done."
 
 ###############################################################################
 echo_title "Set useful variables."
 ###############################################################################
-defaultDocumentRoot=/var/www/html
-newDocumentRoot=${defaultDocumentRoot}/${projectName}/web
+dbServerUrl="${dbServerName}.mysql.database.azure.com"
+defaultDocumentRoot="/var/www/html"
+newDocumentRoot="${defaultDocumentRoot}/${projectName}/web"
 nginxUser="www-data"
 phpFpmIniPath="/etc/php/7.3/fpm/php.ini"
+workingDir=$(pwd)
 echo "Done."
 
 ###############################################################################
@@ -42,19 +58,9 @@ apt-get autoremove -y
 echo "Done."
 
 ###############################################################################
-echo_title "Mount Data disk."
-###############################################################################
-mkfs -t ext4 /dev/sdc
-mkdir --parents $appStoragePath
-printf "/dev/sdc\t${appStoragePath}\text4\tdefaults,nofail\t0\t0\n" >> /etc/fstab
-mount -a
-chown -R $nginxUser $appStoragePath
-echo "Done."
-
-###############################################################################
 echo_title "Install tools."
 ###############################################################################
-apt-get install mysql-client
+apt-get install mysql-client -y
 echo "Done."
 
 ###############################################################################
@@ -103,14 +109,14 @@ echo_title "Configure a new NGINX site for ${projectName}."
 ###############################################################################
 echo "Create and initialize new site document root."
 mkdir --parents ${newDocumentRoot}
-cat <<EOF >> ${newDocumentRoot}/index.php
+cat <<EOF > ${newDocumentRoot}/index.php
 <?php
 phpinfo();
 EOF
 chown -R $nginxUser ${defaultDocumentRoot}
 
 echo "Create new NGINX site configuration."
-cat <<EOF >> /etc/nginx/sites-available/${projectName}
+cat <<EOF > /etc/nginx/sites-available/${projectName}
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -143,11 +149,38 @@ rm /etc/nginx/sites-enabled/default
 
 echo "Reload new site configuration"
 service nginx reload
+echo "Done."
 
 ###############################################################################
-echo_title "Create Application database user if not existing."
+echo_title "Mount Data disk."
 ###############################################################################
-echo "Not yet implemented"
+mkfs -t ext4 /dev/sdc
+mkdir --parents $appStoragePath
+printf "/dev/sdc\t${appStoragePath}\text4\tdefaults,nofail\t0\t0\n" >> /etc/fstab
+mount -a
+chown -R $nginxUser $appStoragePath
+echo "Done."
+
+###############################################################################
+echo_title "Create Application database user "
+###############################################################################
+echo "Save connection string into a file."
+cat <<EOF > ${workingDir}/mysql.connection
+[client]
+host=${dbServerUrl}
+user=${dbAdminUsername}@${dbServerName}
+password="${dbAdminPassword}"
+EOF
+
+echo "Create user and grant prvileges."
+mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF
+DROP USER IF EXISTS "${dbAppUsername}"@"${dbServerName}";
+CREATE USER "${dbAppUsername}"@"${dbServerName}" IDENTIFIED BY '${dbAppPassword}';
+GRANT ALL PRIVILEGES ON ${dbAppDatabaseName}.* TO "${dbAppUsername}"@"${dbServerName}";
+FLUSH PRIVILEGES;
+exit
+EOF
+echo "Done."
 
 ###############################################################################
 echo_title "Finishing $0 on $(date)."

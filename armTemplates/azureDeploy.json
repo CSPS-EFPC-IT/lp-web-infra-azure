@@ -14,6 +14,18 @@
                 "description": "The username to use to manage to the database server."
             }
         },
+        "databaseApplicationPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The password to use to manage to the database server."
+            }
+        },
+        "databaseApplicationUsername": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The username to use to manage to the database server."
+            }
+        },
         "environmentName": {
             "type": "string",
             "defaultValue": "dev",
@@ -812,12 +824,23 @@
                         "[concat(parameters('fileRepositoryUri'), '/scripts/webServerSetup.sh')]"
                     ],
                     "commandToExecute": "[concat('sudo ./webServerSetup.sh ',
-                        custom.cleanName(parameters('projectName')),' ',
-                        variables('vm_app_storage_path'), ' > webServerSetup.log')]"
+                        tolower(custom.cleanName(parameters('projectName'))),' ',
+                        variables('vm_app_storage_path'), ' ',
+                        variables('dbServer_name'), ' ',
+                        parameters('databaseAdminUsername'), ' ',
+                        parameters('databaseAdminPassword'), ' ',
+                        variables('dbServer_appDb_name'), ' ',
+                        parameters('databaseApplicationUsername'), ' ',
+                        parameters('databaseApplicationPassword'), ' > webServerSetup.log')]"
                 },
                 "protectedSettings": {}
             }
         }
     ],
-    "outputs": {}
+    "outputs": {
+        "databaseServerUrl": {
+            "type": "string",
+            "value": "[reference(variables('dbServer_name')).name]"
+        }
+    }
 }

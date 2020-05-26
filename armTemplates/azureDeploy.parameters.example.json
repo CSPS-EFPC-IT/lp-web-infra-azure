@@ -8,6 +8,12 @@
         "databaseAdminPassword": {
             "value": "mySecretPassword"
         },
+        "databaseApplicationUsername": {
+            "value": "my_application_user"
+        },
+        "databaseApplicationPassword": {
+            "value": "my_application_password"
+        },
         "environmentName": {
             "value": "dev"
         },
