@@ -28,6 +28,8 @@ dbAdminPassword="$6"
 dbAppDatabaseName="$7"
 dbAppUsername="$8"
 dbAppPassword="$9"
+shift 9
+vmIpAddress="$1"
 echo_action "Done."
 
 ###############################################################################
@@ -39,9 +41,10 @@ echo_action "dbServerName=${dbServerName}"
 echo_action "dbServerFqdn=${dbServerFqdn}"
 echo_action "dbAdminUsername=${dbAdminUsername}"
 echo_action "dbAdminPassword=${dbAdminPassword}"
-echo_action "dbAppDatabaseName=${dbAppDatabaseName}"
+echo_action "dbAppDatabaseName=${dbAppDatabaseName}" ##
 echo_action "dbAppUsername=${dbAppUsername}"
 echo_action "dbAppPassword=${dbAppPassword}"
+echo_action "vmIpAddress=${vmIpAddress}"
 echo_action "Done."
 
 ###############################################################################
@@ -50,17 +53,17 @@ echo_title "Set useful variables."
 defaultDocumentRoot="/var/www/html"
 newDocumentRoot="${defaultDocumentRoot}/${projectName}/web"
 nginxUser="www-data"
-phpFpmIniPath="/etc/php/7.3/fpm/php.ini"
+phpFpmIniPath="/etc/php/7.4/fpm/php.ini"
 workingDir=$(pwd)
 echo_action "Done."
 
 ###############################################################################
 echo_title "Update and upgrade the server."
 ###############################################################################
-echo_action "Updating sytem..."
+echo_action "Updating system repository..."
 apt-get update
 
-echo_action "Upgrading sytem..."
+echo_action "Upgrading system..."
 apt-get upgrade -y
 
 echo_action "Removing unused components..."
@@ -71,28 +74,44 @@ echo_action "Done."
 ###############################################################################
 echo_title "Install tools."
 ###############################################################################
-echo_action "Installing mysql-client..."
-apt-get install mysql-client -y
+# echo_action "Installing mysql-client..."
+#apt-get install mysql-client -y
+
+echo_action "Installing postgresql-client..."
+apt-get install postgresql-client-10 -y
 
 echo_action "Done."
 
 ###############################################################################
-echo_title "Install NGINX and PHP dependencies."
+echo_title "Install Application Stack."
 ###############################################################################
-echo_action "Adding ppa:ondrej/nginx repository..."
-add-apt-repository ppa:ondrej/nginx -y
+# echo_action "Adding ppa:ondrej/nginx repository..."
+# add-apt-repository ppa:ondrej/nginx -y
 
-echo_action "Adding ppa:ondrej/php repository..."
-add-apt-repository ppa:ondrej/php -y
+# echo_action "Adding ppa:ondrej/php repository..."
+# add-apt-repository ppa:ondrej/php -y
 
-echo_action "Updating local repositories..."
-apt update -y
+# echo_action "Updating local repositories..."
+# apt-get update -y
 
 echo_action "Installing nginx..."
 apt-get install nginx -y
 
-echo_action "Installing PHP 7.3..."
-apt-get install php7.3-fpm php7.3-common php7.3-mysql php7.3-xml php7.3-xmlrpc php7.3-curl php7.3-gd php7.3-imagick php7.3-cli php7.3-dev php7.3-imap php7.3-mbstring php7.3-opcache php7.3-soap php7.3-zip php7.3-intl -y
+# echo_action "Installing PHP 7.3..."
+#apt-get install php7.3-fpm php7.3-common php7.3-mysql php7.3-xml php7.3-xmlrpc php7.3-curl php7.3-gd php7.3-imagick php7.3-cli php7.3-dev php7.3-imap php7.3-mbstring php7.3-opcache php7.3-soap php7.3-zip php7.3-intl -y
+
+echo_action "Installing PHP 7.4..."
+apt-get install php7.4-fpm php7.4-common php7.4-pgsql php7.4-xml php7.4-xmlrpc php7.4-curl php7.4-gd php7.4-imagick php7.4-cli php7.4-dev php7.4-imap php7.4-mbstring php7.4-opcache php7.4-soap php7.4-zip php7.4-intl -y
+
+echo_action "Installing Nodejs and npm..."
+apt-get install npm nodejs -y
+
+echo_action "Installing PHP Composer..."
+apt-get install unzip -y
+curl -sS https://getcomposer.org/installer -o composer-setup.php
+HASH=e0012edf3e80b6978849f5eff0d4b4e4c79ff1609dd1e613307e16318854d24ae64f26d17af3ef0bf7cfb710ca74755a
+php -r "if (hash_file('SHA384', 'composer-setup.php') === '$HASH') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+php composer-setup.php --install-dir=/usr/local/bin --filename=composer
 
 echo_action "Done."
 
@@ -198,6 +217,9 @@ mount -a
 echo_action "Updating mountpoint ownership..."
 chown -R $nginxUser $appStoragePath
 
+echo_action "Creating a symbolic link: ${newDocumentRoot}/uploads -> $appStoragePath..."
+ln -s $appStoragePath $newDocumentRoot/uploads
+
 echo_action "Done."
 
 ###############################################################################
@@ -213,14 +235,14 @@ user=${dbAdminUsername}@${dbServerName}
 password="${dbAdminPassword}"
 EOF
 
-echo_action "Creating user and granting privileges..."
-mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF
-DROP USER IF EXISTS "${dbAppUsername}"@"${dbServerName}";
-CREATE USER "${dbAppUsername}"@"${dbServerName}" IDENTIFIED BY '${dbAppPassword}';
-GRANT ALL PRIVILEGES ON ${dbAppDatabaseName}.* TO "${dbAppUsername}"@"${dbServerName}";
-FLUSH PRIVILEGES;
-exit
-EOF
+# echo_action "Creating user and granting privileges..."
+# mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF
+# DROP USER IF EXISTS "${dbAppUsername}"@"%";
+# CREATE USER "${dbAppUsername}"@"%" IDENTIFIED BY '${dbAppPassword}';
+# GRANT ALL PRIVILEGES ON ${dbAppDatabaseName}.* TO "${dbAppUsername}"@"%";
+# FLUSH PRIVILEGES;
+# exit
+# EOF
 
 echo_action "Done."
 
