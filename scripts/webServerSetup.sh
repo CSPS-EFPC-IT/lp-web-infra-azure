@@ -50,7 +50,7 @@ echo_title "Set useful variables."
 defaultDocumentRoot="/var/www/html"
 newDocumentRoot="${defaultDocumentRoot}/${projectName}/web"
 nginxUser="www-data"
-phpFpmIniPath="/etc/php/7.4/fpm/php.ini"
+phpFpmIniPath="/etc/php/7.2/fpm/php.ini"
 workingDir=$(pwd)
 echo_action "Done."
 
@@ -94,14 +94,20 @@ echo_title "Install Application Stack."
 echo_action "Installing nginx..."
 apt-get install nginx -y
 
-# echo_action "Installing PHP 7.3..."
-#apt-get install php7.3-fpm php7.3-common php7.3-mysql php7.3-xml php7.3-xmlrpc php7.3-curl php7.3-gd php7.3-imagick php7.3-cli php7.3-dev php7.3-imap php7.3-mbstring php7.3-opcache php7.3-soap php7.3-zip php7.3-intl -y
+echo_action "Installing PHP 7.2 Modules..."
+apt-get install php7.2-fpm php7.2-common php7.2-pgsql php7.2-xml php7.2-xmlrpc php7.2-curl php7.2-gd php7.2-imagick php7.2-cli php7.2-dev php7.2-imap php7.2-mbstring php7.2-opcache php7.2-soap php7.2-zip php7.2-intl -y
 
-echo_action "Installing PHP 7.4..."
-apt-get install php7.4-fpm php7.4-common php7.4-pgsql php7.4-xml php7.4-xmlrpc php7.4-curl php7.4-gd php7.4-imagick php7.4-cli php7.4-dev php7.4-imap php7.4-mbstring php7.4-opcache php7.4-soap php7.4-zip php7.4-intl -y
+# echo_action "Installing PHP 7.3 Modules..."
+# apt-get install php7.3-fpm php7.3-common php7.3-mysql php7.3-xml php7.3-xmlrpc php7.3-curl php7.3-gd php7.3-imagick php7.3-cli php7.3-dev php7.3-imap php7.3-mbstring php7.3-opcache php7.3-soap php7.3-zip php7.3-intl -y
 
-echo_action "Installing Nodejs and npm..."
-apt-get install npm nodejs -y
+# echo_action "Installing PHP 7.4 Modules..."
+# apt-get install php7.4-fpm php7.4-common php7.4-pgsql php7.4-xml php7.4-xmlrpc php7.4-curl php7.4-gd php7.4-imagick php7.4-cli php7.4-dev php7.4-imap php7.4-mbstring php7.4-opcache php7.4-soap php7.4-zip php7.4-intl -y
+
+# echo_action "Installing latest PHP modules..."
+# apt-get install php-fpm php-common php-pgsql php-xml php-xmlrpc php-curl php-gd php-imagick php-cli php-dev php-imap php-mbstring php-opcache php-soap php-zip php-intl -y
+
+echo_action "Installing NPM..."
+apt-get install npm -y
 
 echo_action "Installing PHP Composer..."
 apt-get install unzip -y
@@ -140,7 +146,7 @@ echo_action "Updating upload_max_filesize setting."
 sed -i "s/^;\?upload_max_filesize[[:space:]]*=.*/upload_max_filesize = 100M/" $phpFpmIniPath
 
 echo_action "Restarting PHP processor."
-service php7.3-fpm restart
+service php7.2-fpm restart
 
 echo_action "Done."
 
