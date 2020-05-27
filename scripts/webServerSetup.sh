@@ -28,8 +28,6 @@ dbAdminPassword="$6"
 dbAppDatabaseName="$7"
 dbAppUsername="$8"
 dbAppPassword="$9"
-shift 9
-vmIpAddress="$1"
 echo_action "Done."
 
 ###############################################################################
@@ -44,7 +42,6 @@ echo_action "dbAdminPassword=${dbAdminPassword}"
 echo_action "dbAppDatabaseName=${dbAppDatabaseName}" ##
 echo_action "dbAppUsername=${dbAppUsername}"
 echo_action "dbAppPassword=${dbAppPassword}"
-echo_action "vmIpAddress=${vmIpAddress}"
 echo_action "Done."
 
 ###############################################################################
