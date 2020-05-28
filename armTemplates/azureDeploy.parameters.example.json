@@ -20,7 +20,7 @@
         "fileRepositoryUri": {
             "value": "https://raw.githubusercontent.com/CSPS-EFPC-IT/lp-web-infra-azure/master"
         },
-        "gatewaySslCertificatesUri": {
+        "gatewaySslCertificateUri": {
             "value": "https://[Your keyvault name].vault.azure.net/secrets/[your SSL/TLS Certificate Name]/[your SSL/TLS certificat Current version ID]"
         },
         "gatewayUserAssignedIdentity": {

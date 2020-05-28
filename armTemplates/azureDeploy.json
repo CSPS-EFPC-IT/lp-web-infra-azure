@@ -5,25 +5,25 @@
         "databaseAdminPassword": {
             "type": "securestring",
             "metadata": {
-                "description": "The password to use to manage to the database server."
+                "description": "The password to use in order to manage to the database server."
             }
         },
         "databaseAdminUsername": {
             "type": "securestring",
             "metadata": {
-                "description": "The username to use to manage to the database server."
+                "description": "The username to use in order to manage to the database server."
             }
         },
         "databaseApplicationPassword": {
             "type": "securestring",
             "metadata": {
-                "description": "The password to use to manage to the database server."
+                "description": "The password to use in order to access to the application database."
             }
         },
         "databaseApplicationUsername": {
             "type": "securestring",
             "metadata": {
-                "description": "The username to use to manage to the database server."
+                "description": "The username to use in order to access the application database."
             }
         },
         "environmentName": {
@@ -44,7 +44,7 @@
                 "description": "The public URI of the project file repository."
             }
         },
-        "gatewaySslCertificatesUri": {
+        "gatewaySslCertificateUri": {
             "type": "string",
             "metadata": {
                 "description": "The URI of the SSL certificate to deploy in the Application Gateway."
@@ -66,7 +66,7 @@
         "projectName": {
             "type": "string",
             "metadata": {
-                "description": "The name of the project. This string will be used to name all resources required. It may only contain letter, hyphen and underscore characters."
+                "description": "The name of the project. This string will be used to name all resources required. It may only contain letters, hyphens and underscore characters."
             }
         },
         "resourceTags": {
@@ -115,44 +115,46 @@
         }
     ],
     "variables": {
-        "app_networkSecurityGroup_name": "[concat(parameters('projectName'), '-APP-NSG')]",
+        "app_networkSecurityGroup_name": "[concat(variables('resource_name_prefix'), '-PAZ-APP-NSG')]",
         "app_subnet_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.32/27')]",
-        "app_subnet_name": "[concat(parameters('projectName'), '-APP-SN')]",
-        "bastion_name": "[concat(parameters('projectName'), '-BH')]",
-        "bastion_publicIp_name": "[concat(parameters('projectName'), '-BH-PublicIP')]",
+        "app_subnet_name": "[concat(variables('resource_name_prefix'), '-PAZ-APP-SN')]",
+        "bastion_name": "[concat(variables('resource_name_prefix'), '-BH')]",
+        "bastion_publicIp_name": "[concat(variables('bastion_name'), '-PublicIP')]",
         "bastion_subnet_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.128/27')]",
         "bastion_subnet_name": "AzureBastionSubnet",
         "dbServer_appDb_name": "[tolower(custom.cleanName(parameters('projectName')))]",
-        "dbServer_name": "[concat(parameters('projectName'), '-', parameters('environmentName'), '-DB')]",
+        "dbServer_name": "[concat(variables('resource_name_prefix'), '-DB')]",
         "dbServer_backupRetentionDays": "[if(equals(parameters('environmentName'), 'dev'), '7', '28')]",
         "diagnostic_blobServices_name": "Default",
-        "diagnostic_storageAccount_name": "[tolower(concat(take(custom.cleanName(parameters('projectName')), 11), 'diag', take(parameters('environmentName'), 4), 'sa'))]",
+        "diagnostic_storageAccount_name": "[tolower(concat(take(custom.cleanName(variables('resource_name_prefix')), 17), 'diagsa'))]",
         "gateway_backendAddressPool_name": "webserver",
-        "gateway_backendHttpSettingsCollection_name": "[concat(parameters('projectName'), '-HTTP-settings')]",
+        "gateway_backendHttpSettingsCollection_name": "[concat(parameters('projectName'), '-HTTP-Settings')]",
         "gateway_frontendIPConfigurations_name": "appGwPublicFrontendIp",
-        "gateway_frontendPort_http_name": "http_port",
-        "gateway_frontendPort_https_name": "https_port",
+        "gateway_frontendPort_http_name": "HTTP-Port",
+        "gateway_frontendPort_https_name": "HTTPS-Port",
         "gateway_gatewayIPConfigurations_name": "appGatewayIpConfig",
-        "gateway_httpListeners_http_name": "HTTP-listener",
-        "gateway_httpListeners_https_name": "HTTPS-listener",
-        "gateway_name": "[concat(parameters('projectName'), '-GW')]",
-        "gateway_publicIp_domainNameLabel": "[tolower(concat(parameters('projectName'), '-', parameters('environmentName')))]",
-        "gateway_publicIp_name": "[concat(parameters('projectName'), '-GW-PublicIP')]",
-        "gateway_redirectConfigurations_name": "http-redirect",
-        "gateway_requestRoutingRule_http_name": "http-rule",
-        "gateway_requestRoutingRule_https_name": "https-rule",
-        "gateway_sslCertificate_https_name": "HTTPS-certificate",
-        "paz_networkSecurityGroup_name": "[concat(parameters('projectName'), '-PAZ-NSG')]",
+        "gateway_httpListeners_http_name": "HTTP-Listener",
+        "gateway_httpListeners_https_name": "HTTPS-Listener",
+        "gateway_name": "[concat(variables('resource_name_prefix'), '-AG')]",
+        "gateway_publicIp_domainNameLabel": "[tolower(concat(variables('resource_name_prefix')))]",
+        "gateway_publicIp_name": "[concat(variables('gateway_name'), '-PublicIP')]",
+        "gateway_redirectConfigurations_name": "HTTP-Redirect",
+        "gateway_requestRoutingRule_http_name": "HTTP-Rule",
+        "gateway_requestRoutingRule_https_name": "HTTPS-Rule",
+        "gateway_sslCertificate_https_name": "HTTPS-Certificate",
+        "paz_networkSecurityGroup_name": "[concat(variables('resource_name_prefix'), '-PAZ-AG-NSG')]",
         "paz_subnet_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.0/27')]",
-        "paz_subnet_name": "[concat(parameters('projectName'), '-PAZ-SN')]",
+        "paz_subnet_name": "[concat(variables('resource_name_prefix'), '-PAZ-AG-SN')]",
+        "resource_name_prefix" : "[concat(parameters('projectName'), '-', toupper(parameters('environmentName')))]",
         "virtualNetwork_addressPrefix": "[concat(parameters('virtualNetworkAddressBase'), '.0/24')]",
-        "virtualNetwork_name": "[concat(parameters('projectName'), '-', toupper(parameters('environmentName')), '-VN')]",
+        "virtualNetwork_name": "[concat(variables('resource_name_prefix'), '-VN')]",
         "vm_nic_name": "[concat(variables('vm_name'), '-NIC')]",
-        "vm_name": "[concat(parameters('projectName'), '-VM')]",
+        "vm_name": "[concat(variables('resource_name_prefix'), '-VM')]",
         "vm_osDisk_name": "[concat(variables('vm_name'), '-OS-Disk')]",
-        "vm_dataDisk_name": "[concat(variables('vm_name'), '-data-Disk')]",
-        "vm_computerName": "[tolower(custom.cleanName(parameters('projectName')))]",
-        "vm_app_storage_path" : "/mnt/storage"
+        "vm_dataDisk_name": "[concat(variables('vm_name'), '-Data-Disk')]",
+        "vm_computerName": "[tolower(custom.cleanName(variables('resource_name_prefix')))]",
+        "vm_app_storage_path" : "/mnt/storage",
+        "postgresql_name" : "[concat(variables('resource_name_prefix'), '-POSTGRES')]"
     },
     "resources": [
 
@@ -226,23 +228,6 @@
                             "destinationPortRanges": [
                                 "80"
                             ],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "AllowBastionInBound",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "22",
-                            "sourceAddressPrefix": "[variables('bastion_subnet_addressPrefix')]",
-                            "destinationAddressPrefix": "*",
-                            "access": "Allow",
-                            "priority": 110,
-                            "direction": "Inbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
@@ -465,7 +450,7 @@
                     {
                         "name": "[variables('gateway_sslCertificate_https_name')]",
                         "properties": {
-                            "keyVaultSecretId": "[parameters('gatewaySslCertificatesUri')]"
+                            "keyVaultSecretId": "[parameters('gatewaySslCertificateUri')]"
                         }
                     }
                 ],
@@ -619,6 +604,131 @@
             "name": "[concat(variables('dbServer_name'), '/', variables('app_subnet_name'))]",
             "dependsOn": [
                 "[resourceId('Microsoft.DBforMySQL/servers', variables('dbServer_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]"
+            ],
+            "properties": {
+                "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetwork_name'), variables('app_subnet_name'))]",
+                "ignoreMissingVnetServiceEndpoint": false
+            }
+        },
+
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers",
+            "apiVersion": "2017-12-01",
+            "name": "[variables('postgresql_name')]",
+            "tags": "[parameters('resourceTags')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "GP_Gen5_4",
+                "tier": "GeneralPurpose",
+                "family": "Gen5",
+                "capacity": 4
+            },
+            "properties": {
+                "storageProfile": {
+                    "storageMB": 102400,
+                    "backupRetentionDays": "[variables('dbServer_backupRetentionDays')]",
+                    "geoRedundantBackup": "Disabled",
+                    "storageAutogrow": "Enabled"
+                },
+                "version": "10",
+                "sslEnforcement": "Enabled",
+                "createMode": "Default",
+                "administratorLogin": "[parameters('databaseAdminUsername')]",
+                "administratorLoginPassword": "[parameters('databaseAdminPassword')]"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/configurations",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/azure.replication_support')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]"
+            ],
+            "properties": {
+                "value": "OFF",
+                "source": "user-override"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/configurations",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/pg_qs.query_capture_mode')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]"
+            ],
+            "properties": {
+                "value": "ALL",
+                "source": "user-override"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/configurations",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/pgms_wait_sampling.query_capture_mode')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]"
+            ],
+            "properties": {
+                "value": "ALL",
+                "source": "user-override"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/databases",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/azure_maintenance')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]"
+            ],
+            "properties": {
+                "charset": "UTF8",
+                "collation": "English_United States.1252"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/databases",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/azure_sys')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]"
+            ],
+            "properties": {
+                "charset": "UTF8",
+                "collation": "English_United States.1252"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/databases",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/', variables('dbServer_appDb_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]"
+            ],
+            "properties": {
+                "charset": "UTF8",
+                "collation": "English_United States.1252"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/databases",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/postgres')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]"
+            ],
+            "properties": {
+                "charset": "UTF8",
+                "collation": "English_United States.1252"
+            }
+        },
+        {
+            "type": "Microsoft.DBforPostgreSQL/servers/virtualNetworkRules",
+            "apiVersion": "2017-12-01",
+            "name": "[concat(variables('postgresql_name'), '/', variables('app_subnet_name'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/servers', variables('postgresql_name'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetwork_name'))]"
             ],
             "properties": {
@@ -813,7 +923,8 @@
             "location": "[parameters('location')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Compute/virtualMachines', variables('vm_name'))]",
-                "[resourceId('Microsoft.DBforMySQL/servers/databases', variables('dbServer_name'), variables('dbServer_appDb_name'))]"
+                "[resourceId('Microsoft.DBforMySQL/servers/databases', variables('dbServer_name'), variables('dbServer_appDb_name'))]",
+                "[resourceId('Microsoft.DBforPostgreSQL/servers/databases', variables('postgresql_name'), variables('dbServer_appDb_name'))]"
             ],
             "properties": {
                 "publisher": "Microsoft.Azure.Extensions",
@@ -828,12 +939,13 @@
                         tolower(custom.cleanName(parameters('projectName'))),' ',
                         variables('vm_app_storage_path'), ' ',
                         variables('dbServer_name'), ' ',
-                        reference(variables('dbServer_name')).fullyQualifiedDomainName, ' ',
+                        reference(variables('postgresql_name')).fullyQualifiedDomainName, ' ',
                         parameters('databaseAdminUsername'), ' ',
                         parameters('databaseAdminPassword'), ' ',
                         variables('dbServer_appDb_name'), ' ',
                         parameters('databaseApplicationUsername'), ' ',
-                        parameters('databaseApplicationPassword'), ' > webServerSetup.log')]"
+                        parameters('databaseApplicationPassword'), ' ',
+                        parameters('vmAdminUsername'), ' > webServerSetup.log')]"
                 },
                 "protectedSettings": {}
             }
