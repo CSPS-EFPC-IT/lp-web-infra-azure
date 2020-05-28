@@ -266,13 +266,14 @@ echo_action "Creating user and granting privileges..."
 psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require" <<EOF | cat
 DO \$\$
 BEGIN
-    IF NOT EXISTS ( SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}' ) THEN
-        create user ${dbAppUsername} with encrypted password '${dbAppPassword}';
-        grant all privileges on database ${dbAppDatabaseName} to ${dbAppUsername};
-        RAISE NOTICE 'User ${dbAppUsername} created.';
-    ELSE
-      RAISE WARNING 'User ${dbAppUsername} already existing.';
+    IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}') THEN
+        RAISE WARNING 'User ${dbAppUsername} was already existing.';
+        DROP OWNED BY ${dbAppUsername};
+        DROP USER ${dbAppUsername};
     END IF;
+    CREATE USER ${dbAppUsername} WITH ENCRYPTED PASSWORD '${dbAppPassword}';
+    GRANT ALL PRIVILEGES ON DATABASE ${dbAppDatabaseName} TO ${dbAppUsername};
+    RAISE INFO 'User ${dbAppUsername} created.';
 END
 \$\$;
 EOF
