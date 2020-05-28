@@ -28,6 +28,8 @@ dbAdminPassword="$6"
 dbAppDatabaseName="$7"
 dbAppUsername="$8"
 dbAppPassword="$9"
+shift 9
+vmAdminUsername="$1"
 echo_action "Done."
 
 ###############################################################################
@@ -42,6 +44,7 @@ echo_action "dbAdminPassword=${dbAdminPassword}"
 echo_action "dbAppDatabaseName=${dbAppDatabaseName}" ##
 echo_action "dbAppUsername=${dbAppUsername}"
 echo_action "dbAppPassword=${dbAppPassword}"
+echo_action "vmAdminUsername=${vmAdminUsername}"
 echo_action "Done."
 
 ###############################################################################
@@ -163,7 +166,7 @@ phpinfo();
 EOF
 
 echo_action "Updating document root ownership..."
-chown -R $nginxUser ${defaultDocumentRoot}
+chown -R ${nginxUser}:${vmAdminUsername} ${defaultDocumentRoot}
 
 echo_action "Creating new NGINX site configuration..."
 cat <<EOF > /etc/nginx/sites-available/${projectName}
@@ -182,7 +185,7 @@ server {
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
     }
 
     location ~ /\.ht {
@@ -246,6 +249,26 @@ EOF
 # FLUSH PRIVILEGES;
 # exit
 # EOF
+
+touch ${workingDir}/postgres.connection
+chmod 600 ${workingDir}/postgres.connection
+cat <<EOF > ${workingDir}/postgres.connection
+*:*:*:*:${dbAdminPassword}
+EOF
+
+psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${workingDir}/postgres.connection sslmode=require" << EOF
+DO \$\$
+BEGIN
+    IF NOT EXISTS ( SELECT FROM pg_catalog.pg_roles WHERE rolname='${moodleDbUsername}' ) THEN
+        create user ${dbAppUsername} with encrypted password '${dbAppPassword}';
+        grant all privileges on database ${dbAppDatabaseName} to ${dbAppUsername};
+        RAISE NOTICE 'User ${dbAppUsername} created.';
+    ELSE
+      RAISE WARNING 'The user ${dbAppUsername} was already existing.';
+    END IF;
+END
+\$\$;
+EOF
 
 echo_action "Done."
 
