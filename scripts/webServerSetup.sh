@@ -181,10 +181,10 @@ server {
     server_name _;
 
     location / {
-        try_files $uri $uri/ @rewrites;
+        try_files \$uri \$uri/ @rewrites;
     }
     location @rewrites {
-        rewrite ^(.*) /index.php?p=$1 last;
+        rewrite ^(.*) /index.php?p=\$1 last;
     }
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
@@ -271,7 +271,7 @@ BEGIN
         grant all privileges on database ${dbAppDatabaseName} to ${dbAppUsername};
         RAISE NOTICE 'User ${dbAppUsername} created.';
     ELSE
-      RAISE WARNING 'The user ${dbAppUsername} was already existing.';
+      RAISE WARNING 'User ${dbAppUsername} already existing.';
     END IF;
 END
 \$\$;
