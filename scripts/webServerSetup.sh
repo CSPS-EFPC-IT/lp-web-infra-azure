@@ -167,7 +167,7 @@ EOF
 
 echo_action "Updating document root ownership..."
 chown -R ${nginxUser}:${vmAdminUsername} ${defaultDocumentRoot}
-chmod g+w ${defaultDocumentRoot}
+chmod -R g+w ${defaultDocumentRoot}
 
 echo_action "Creating new NGINX site configuration..."
 cat <<EOF > /etc/nginx/sites-available/${projectName}
