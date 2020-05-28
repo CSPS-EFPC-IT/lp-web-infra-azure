@@ -246,7 +246,7 @@ echo_title "Create Application database user "
 # EOF
 
 # echo_action "Creating user and granting privileges..."
-# mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF
+# mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF | cat
 # DROP USER IF EXISTS "${dbAppUsername}"@"%";
 # CREATE USER "${dbAppUsername}"@"%" IDENTIFIED BY '${dbAppPassword}';
 # GRANT ALL PRIVILEGES ON ${dbAppDatabaseName}.* TO "${dbAppUsername}"@"%";
@@ -263,10 +263,10 @@ cat <<EOF > ${pgpassPath}
 EOF
 
 echo_action "Creating user and granting privileges..."
-psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require" <<EOF
+psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require" <<EOF | cat
 DO \$\$
 BEGIN
-    IF NOT EXISTS ( SELECT FROM pg_catalog.pg_roles WHERE rolname='${moodleDbUsername}' ) THEN
+    IF NOT EXISTS ( SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}' ) THEN
         create user ${dbAppUsername} with encrypted password '${dbAppPassword}';
         grant all privileges on database ${dbAppDatabaseName} to ${dbAppUsername};
         RAISE NOTICE 'User ${dbAppUsername} created.';
