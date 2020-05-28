@@ -246,7 +246,7 @@ echo_title "Create Application database user "
 # EOF
 
 # echo_action "Creating user and granting privileges..."
-# mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF | cat
+# mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF
 # DROP USER IF EXISTS "${dbAppUsername}"@"%";
 # CREATE USER "${dbAppUsername}"@"%" IDENTIFIED BY '${dbAppPassword}';
 # GRANT ALL PRIVILEGES ON ${dbAppDatabaseName}.* TO "${dbAppUsername}"@"%";
@@ -263,7 +263,7 @@ cat <<EOF > ${pgpassPath}
 EOF
 
 echo_action "Creating user and granting privileges..."
-psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require" <<EOF | cat
+psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require"<<EOF
 DO \$\$
 BEGIN
     IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}') THEN
