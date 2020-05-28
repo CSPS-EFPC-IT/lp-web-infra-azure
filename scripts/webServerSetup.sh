@@ -66,9 +66,6 @@ apt-get update
 echo_action "Upgrading system..."
 apt-get upgrade -y
 
-echo_action "Removing unused components..."
-apt-get autoremove -y
-
 echo_action "Done."
 
 ###############################################################################
@@ -119,6 +116,9 @@ HASH=e0012edf3e80b6978849f5eff0d4b4e4c79ff1609dd1e613307e16318854d24ae64f26d17af
 php -r "if (hash_file('SHA384', 'composer-setup.php') === '$HASH') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
 php composer-setup.php --install-dir=/usr/local/bin --filename=composer
 
+echo_action "Removing unused components..."
+apt-get autoremove -y
+
 echo_action "Done."
 
 ###############################################################################
@@ -167,6 +167,7 @@ EOF
 
 echo_action "Updating document root ownership..."
 chown -R ${nginxUser}:${vmAdminUsername} ${defaultDocumentRoot}
+chmod g+w ${defaultDocumentRoot}
 
 echo_action "Creating new NGINX site configuration..."
 cat <<EOF > /etc/nginx/sites-available/${projectName}
@@ -180,17 +181,20 @@ server {
     server_name _;
 
     location / {
-        try_files \$uri \$uri/ =404;
+        try_files $uri $uri/ @rewrites;
     }
-
+    location @rewrites {
+        rewrite ^(.*) /index.php?p=$1 last;
+    }
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php7.2-fpm.sock;
     }
-
     location ~ /\.ht {
         deny all;
     }
+
+    error_page 404 /index.php;
 }
 EOF
 
@@ -231,15 +235,15 @@ echo_action "Done."
 ###############################################################################
 echo_title "Create Application database user "
 ###############################################################################
-echo_action "Saving database connection parameters to file..."
-touch ${workingDir}/mysql.connection
-chmod 600 ${workingDir}/mysql.connection
-cat <<EOF > ${workingDir}/mysql.connection
-[client]
-host=${dbServerFqdn}
-user=${dbAdminUsername}@${dbServerName}
-password="${dbAdminPassword}"
-EOF
+# echo_action "Saving database connection parameters to file..."
+# touch ${workingDir}/mysql.connection
+# chmod 600 ${workingDir}/mysql.connection
+# cat <<EOF > ${workingDir}/mysql.connection
+# [client]
+# host=${dbServerFqdn}
+# user=${dbAdminUsername}@${dbServerName}
+# password="${dbAdminPassword}"
+# EOF
 
 # echo_action "Creating user and granting privileges..."
 # mysql --defaults-extra-file=${workingDir}/mysql.connection <<EOF
@@ -250,13 +254,16 @@ EOF
 # exit
 # EOF
 
-touch ${workingDir}/postgres.connection
-chmod 600 ${workingDir}/postgres.connection
-cat <<EOF > ${workingDir}/postgres.connection
+echo_action "Saving database connection parameters to file..."
+pgpassPath="${workingDir}/.pgpass"
+touch ${pgpassPath}
+chmod 600 ${pgpassPath}
+cat <<EOF > ${pgpassPath}
 *:*:*:*:${dbAdminPassword}
 EOF
 
-psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${workingDir}/postgres.connection sslmode=require" << EOF
+echo_action "Creating user and granting privileges..."
+psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require" <<EOF
 DO \$\$
 BEGIN
     IF NOT EXISTS ( SELECT FROM pg_catalog.pg_roles WHERE rolname='${moodleDbUsername}' ) THEN
