@@ -53,7 +53,8 @@ echo_title "Set useful variables."
 defaultDocumentRoot="/var/www/html"
 newDocumentRoot="${defaultDocumentRoot}/${projectName}/web"
 nginxUser="www-data"
-phpFpmIniPath="/etc/php/7.2/fpm/php.ini"
+phpVersion="7.2"
+phpFpmIniPath="/etc/php/${phpVersion}/fpm/php.ini"
 workingDir=$(pwd)
 echo_action "Done."
 
@@ -82,20 +83,27 @@ echo_action "Done."
 ###############################################################################
 echo_title "Install Application Stack."
 ###############################################################################
-# echo_action "Adding ppa:ondrej/nginx repository..."
-# add-apt-repository ppa:ondrej/nginx -y
-
-# echo_action "Adding ppa:ondrej/php repository..."
-# add-apt-repository ppa:ondrej/php -y
-
-# echo_action "Updating local repositories..."
-# apt-get update -y
-
 echo_action "Installing nginx..."
 apt-get install nginx -y
 
-echo_action "Installing PHP 7.2 Modules..."
-apt-get install php7.2-fpm php7.2-common php7.2-pgsql php7.2-xml php7.2-xmlrpc php7.2-curl php7.2-gd php7.2-imagick php7.2-cli php7.2-dev php7.2-imap php7.2-mbstring php7.2-opcache php7.2-soap php7.2-zip php7.2-intl -y
+echo_action "Installing PHP ${phpVersion} Modules..."
+apt-get install \
+    php${phpVersion}-cli \
+    php${phpVersion}-common \
+    php${phpVersion}-curl \
+    php${phpVersion}-dev \
+    php${phpVersion}-fpm \
+    php${phpVersion}-gd \
+    php${phpVersion}-imagick \
+    php${phpVersion}-imap \
+    php${phpVersion}-intl \
+    php${phpVersion}-mbstring \
+    php${phpVersion}-opcache \
+    php${phpVersion}-pgsql \
+    php${phpVersion}-soap \
+    php${phpVersion}-xml \
+    php${phpVersion}-xmlrpc \
+    php${phpVersion}-zip -y
 
 # echo_action "Installing PHP 7.3 Modules..."
 # apt-get install php7.3-fpm php7.3-common php7.3-mysql php7.3-xml php7.3-xmlrpc php7.3-curl php7.3-gd php7.3-imagick php7.3-cli php7.3-dev php7.3-imap php7.3-mbstring php7.3-opcache php7.3-soap php7.3-zip php7.3-intl -y
@@ -149,7 +157,7 @@ echo_action "Updating upload_max_filesize setting."
 sed -i "s/^;\?upload_max_filesize[[:space:]]*=.*/upload_max_filesize = 100M/" $phpFpmIniPath
 
 echo_action "Restarting PHP processor."
-service php7.2-fpm restart
+service php${phpVersion}-fpm restart
 
 echo_action "Done."
 
@@ -188,7 +196,7 @@ server {
     }
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
+        fastcgi_pass unix:/run/php/php${phpVersion}-fpm.sock;
     }
     location ~ /\.ht {
         deny all;
@@ -254,26 +262,18 @@ echo_title "Create Application database user "
 # exit
 # EOF
 
-echo_action "Saving database connection parameters to file..."
-pgpassPath="${workingDir}/.pgpass"
-touch ${pgpassPath}
-chmod 600 ${pgpassPath}
-cat <<EOF > ${pgpassPath}
-*:*:*:*:${dbAdminPassword}
-EOF
-
 echo_action "Creating user and granting privileges..."
-psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} passfile=${pgpassPath} sslmode=require"<<EOF
+export PGPASSWORD="$dbAdminPassword"
+psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} sslmode=require" <<EOF
 DO \$\$
 BEGIN
-    IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}') THEN
-        RAISE WARNING 'User ${dbAppUsername} was already existing.';
-        DROP OWNED BY ${dbAppUsername};
-        DROP USER ${dbAppUsername};
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}') THEN
+        CREATE USER ${dbAppUsername} WITH ENCRYPTED PASSWORD '${dbAppPassword}';
+        GRANT ALL PRIVILEGES ON DATABASE ${dbAppDatabaseName} TO ${dbAppUsername};
+        RAISE INFO 'User ${dbAppUsername} created.';
+    ELSE
+        RAISE WARNING 'User ${dbAppUsername} was already existing. Nothing was done.';
     END IF;
-    CREATE USER ${dbAppUsername} WITH ENCRYPTED PASSWORD '${dbAppPassword}';
-    GRANT ALL PRIVILEGES ON DATABASE ${dbAppDatabaseName} TO ${dbAppUsername};
-    RAISE INFO 'User ${dbAppUsername} created.';
 END
 \$\$;
 EOF
