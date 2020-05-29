@@ -267,12 +267,12 @@ export PGPASSWORD="$dbAdminPassword"
 psql "host=${dbServerFqdn} port=5432 dbname=postgres user=${dbAdminUsername}@${dbServerName} sslmode=require" <<EOF
 DO \$\$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}') THEN
+    IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname='${dbAppUsername}') THEN
+        RAISE WARNING 'User ${dbAppUsername} already existing. Skipping task.';
+    ELSE
         CREATE USER ${dbAppUsername} WITH ENCRYPTED PASSWORD '${dbAppPassword}';
         GRANT ALL PRIVILEGES ON DATABASE ${dbAppDatabaseName} TO ${dbAppUsername};
         RAISE INFO 'User ${dbAppUsername} created.';
-    ELSE
-        RAISE WARNING 'User ${dbAppUsername} was already existing. Nothing was done.';
     END IF;
 END
 \$\$;
