@@ -842,14 +842,14 @@
                     "fileUris": [
                         "[concat(parameters('fileRepositoryUri'), '/scripts/webServerSetup.sh')]"
                     ],
-                    "commandToExecute": "[concat('sudo ./webServerSetup.sh ',tolower(custom.cleanName(parameters('projectName'))), ' ', variables('vm_app_storage_path'), ' ', variables('db_name'), ' ', reference(variables('db_name')).fullyQualifiedDomainName, ' ', parameters('databaseAdminUsername'), ' ', parameters('databaseAdminPassword'), ' ', variables('db_appDb_name'), ' ', parameters('databaseApplicationUsername'), ' ', parameters('databaseApplicationPassword'), ' ', parameters('vmAdminUsername'), ' >webServerSetup.log 2>&1')]"
+                    "commandToExecute": "[concat('sudo ./webServerSetup.sh ', tolower(custom.cleanName(parameters('projectName'))), ' ', variables('vm_app_storage_path'), ' ', variables('db_name'), ' ', reference(variables('db_name')).fullyQualifiedDomainName, ' ', parameters('databaseAdminUsername'), ' ', parameters('databaseAdminPassword'), ' ', variables('db_appDb_name'), ' ', parameters('databaseApplicationUsername'), ' ', parameters('databaseApplicationPassword'), ' ', parameters('vmAdminUsername'), ' >webServerSetup.log 2>&1')]"
                 },
                 "protectedSettings": {}
             }
         }
     ],
     "outputs": {
-        "vn_name": {
+        "virtualNetworkName": {
             "type": "string",
             "value": "[variables('vn_name')]"
         }
